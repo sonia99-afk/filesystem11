@@ -14,9 +14,9 @@
     4. содержимое
   */
 
-  --visibility-side-collapse-left: -60px;
-  --visibility-side-hide-left: -40px;
-  --visibility-side-restore-left: -20px;
+  --visibility-side-collapse-left: -15px;
+  --visibility-side-hide-left: -35px;
+  --visibility-side-restore-left: -25px;
 
   /*
     Для «Структура + Таблица»:

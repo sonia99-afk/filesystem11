@@ -152,14 +152,6 @@ body.view-structure-table
 }
 
 
-
-body.view-structure-table
-#tree .level-collapse-bar {
-  position: absolute;
-  left: 0;
-  top: -32px;
-}
-
 /*
   Верхние кнопки находятся внутри
   перемещаемой колонки структуры.
@@ -169,7 +161,7 @@ body.view-structure-table
 .structure-table-schema-pane
 > .level-collapse-bar {
   position: absolute;
-  top: -32px;
+  top: -45px;
   left: 0;
 
   width: max-content;
@@ -182,7 +174,7 @@ body.view-structure-table
 .structure-table-schema-pane
 > .level-hide-bar {
   position: absolute;
-  top: -52px;
+  top: -30px;
   left: 0;
 
   width: max-content;
@@ -389,7 +381,7 @@ body.view-structure-table
 > .level-collapse-bar {
   top:
     calc(
-      -32px -
+      -45px -
       var(
         --structure-table-top-headers-height,
         0px
@@ -404,7 +396,7 @@ body.view-structure-table
 > .level-hide-bar {
   top:
     calc(
-      -52px -
+      -30px -
       var(
         --structure-table-top-headers-height,
         0px

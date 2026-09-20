@@ -1162,7 +1162,6 @@ return {
       getCurrentContext(root);
 
     if (
-      !context?.structureHeader ||
       !context.structureBody ||
       !context.table
     ) {
