@@ -454,11 +454,17 @@ function buildLevelHeaderRail(
   }
 
   const rail =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   rail.className =
     "structure-table-level-header-rail";
 
+  /*
+    Переносим блок заголовков уровней
+    в отдельную строку над таблицей.
+  */
   rail.appendChild(
     structureHeader
   );

@@ -42,13 +42,7 @@
   opacity: 1;
 }
 
-.level-collapse-bar {
-  position: relative;
-  display: flex;
-  top: -15px;
-  gap: 12px;
-  margin-bottom: 6px;
-}
+
 
 .level-collapse-btn:hover {
   color: black;

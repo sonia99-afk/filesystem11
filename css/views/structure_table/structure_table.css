@@ -152,35 +152,7 @@ body.view-structure-table
 }
 
 
-/*
-  Верхние кнопки находятся внутри
-  перемещаемой колонки структуры.
-*/
-body.view-structure-table
-#tree
-.structure-table-schema-pane
-> .level-collapse-bar {
-  position: absolute;
-  top: -45px;
-  left: 0;
 
-  width: max-content;
-  z-index: 45;
-  pointer-events: auto;
-}
-
-body.view-structure-table
-#tree
-.structure-table-schema-pane
-> .level-hide-bar {
-  position: absolute;
-  top: -30px;
-  left: 0;
-
-  width: max-content;
-  z-index: 45;
-  pointer-events: auto;
-}
 
 /*
   Боковые кнопки также перемещаются
@@ -334,6 +306,94 @@ tbody > tr.structure-table-active-row
   pointer-events: none;
 }
 
+/* =========================================================
+   Верхние кнопки уровней
+========================================================= */
+
+/*
+  Без верхних заголовков уровней:
+
+  collapse: -50 ... -30
+  hide:     -30 ... -10
+
+  После нижней строки остаётся
+  10px до шапки таблицы.
+*/
+
+body.view-structure-table
+#tree
+.structure-table-schema-pane
+> .level-collapse-bar {
+  position: absolute;
+
+  top: -20px;
+  left: 64px;
+
+  width: max-content;
+  height: 20px;
+
+  z-index: 45;
+  pointer-events: auto;
+}
+
+
+body.view-structure-table
+#tree
+.structure-table-schema-pane
+> .level-hide-bar {
+  position: absolute;
+
+  top: -35px;
+  left: 64px;
+
+  width: max-content;
+  height: 20px;
+
+  z-index: 45;
+  pointer-events: auto;
+}
+
+
+/*
+  Если заголовки уровней находятся сверху,
+  обе строки поднимаются на всю высоту
+  блока заголовков.
+
+  Между нижней строкой кнопок и
+  заголовками уровней остаётся 10px.
+*/
+
+body.view-structure-table
+#tree
+.structure-table-has-top-level-headers
+> .structure-table-schema-pane
+> .level-collapse-bar {
+  top:
+    calc(
+      -20px -
+      var(
+        --structure-table-top-headers-height,
+        0px
+      )
+    );
+}
+
+
+body.view-structure-table
+#tree
+.structure-table-has-top-level-headers
+> .structure-table-schema-pane
+> .level-hide-bar {
+  top:
+    calc(
+      -35px -
+      var(
+        --structure-table-top-headers-height,
+        0px
+      )
+    );
+}
+
 #tree
 .structure-table-level-header-rail
 > .structure-table-schema-header {
@@ -367,41 +427,6 @@ tbody > tr.structure-table-active-row
 */
 #tree .structure-table-schema-body {
   padding-left: 64px;
-}
-
-
-/*
-  Верхние панели располагаются выше
-  вынесенных заголовков и не перекрывают их.
-*/
-body.view-structure-table
-#tree
-.structure-table-has-top-level-headers
-> .structure-table-schema-pane
-> .level-collapse-bar {
-  top:
-    calc(
-      -45px -
-      var(
-        --structure-table-top-headers-height,
-        0px
-      )
-    );
-}
-
-body.view-structure-table
-#tree
-.structure-table-has-top-level-headers
-> .structure-table-schema-pane
-> .level-hide-bar {
-  top:
-    calc(
-      -30px -
-      var(
-        --structure-table-top-headers-height,
-        0px
-      )
-    );
 }
 
 /*

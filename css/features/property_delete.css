@@ -54,7 +54,7 @@
 .property-delete-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 12px;
 
   margin-top: 20px;
 }

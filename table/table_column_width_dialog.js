@@ -364,7 +364,7 @@ pixelsGroup.append(
     const autoOption =
       createOption(
         MODE_AUTO,
-        "Автоподбор по максимальной ширине содержимого"
+        "Автоподбор по максимальной ширине текста"
       );
 
     const error =
@@ -504,27 +504,12 @@ pixelsGroup.append(
     pixelsRadio.checked = true;
     autoRadio.checked = false;
 
-    const currentWidth =
-      window.tableColumnResize
-        .getCurrentWidth?.(
-          table,
-          columnKey
-        ) ||
-      window.tableColumnResize
-        .getSavedWidth?.(
-          columnKey
-        ) ||
-      60;
-
     const input =
-      root.querySelector(
-        "#tableColumnWidthInput"
-      );
+  root.querySelector(
+    "#tableColumnWidthInput"
+  );
 
-    input.value =
-      String(
-        Math.round(currentWidth)
-      );
+input.value = "";
 
     showError("");
     syncMode();

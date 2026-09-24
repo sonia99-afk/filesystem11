@@ -1,574 +1,305 @@
 const express = require("express");
 const crypto = require("crypto");
-
 const pool = require("../db");
 const requireAuth = require("../middleware/auth");
-const requireWorkspaceRole = require(
-  "../middleware/workspaceAccess"
-);
 
 const router = express.Router();
+router.use(requireAuth);
 
+function mapProject(row, includeDocument = true) {
+  const project = {
+    id: row.id,
+    title: row.title,
+    schemaVersion: row.schema_version,
+    revision: row.revision,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 
-/* =========================================================
-   Получить список проектов воркспейса
-========================================================= */
+  if (includeDocument) {
+    project.document = row.document;
+  }
 
-router.get(
-  "/:workspaceId/projects",
-  requireAuth,
-  requireWorkspaceRole(
-    "owner",
-    "editor",
-    "viewer"
-  ),
-  async (req, res) => {
+  return project;
+}
+
+function badRequest(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function normalizeTitle(value, fallback = "Проект") {
+  if (typeof value !== "string") return fallback;
+  const title = value.trim() || fallback;
+  if (title.length > 250) throw badRequest("Название проекта слишком длинное.");
+  return title;
+}
+
+function normalizeSchemaVersion(value, fallback = 2) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw badRequest("Некорректная версия проекта.");
+  }
+  return parsed;
+}
+
+function normalizeDocument(value) {
+  let document = value;
+
+  if (typeof document === "string") {
     try {
-      const { workspaceId } = req.params;
-
-      const result = await pool.query(
-        `
-          SELECT
-            id,
-            title,
-            schema_version,
-            revision,
-            created_at,
-            updated_at
-          FROM projects
-          WHERE workspace_id = $1
-          ORDER BY updated_at DESC
-        `,
-        [workspaceId]
-      );
-
-      return res.json({
-        ok: true,
-
-        projects: result.rows.map(
-          (project) => ({
-            id: project.id,
-            title: project.title,
-            schemaVersion:
-              project.schema_version,
-            revision:
-              project.revision,
-            createdAt:
-              project.created_at,
-            updatedAt:
-              project.updated_at,
-          })
-        ),
-      });
-    } catch (error) {
-      console.error(
-        "Get projects error:",
-        error
-      );
-
-      return res.status(500).json({
-        ok: false,
-        error:
-          "Не удалось получить проекты.",
-      });
+      document = JSON.parse(document);
+    } catch (_) {
+      throw badRequest("Данные проекта содержат некорректный JSON.");
     }
   }
-);
 
-
-/* =========================================================
-   Получить один проект
-========================================================= */
-
-router.get(
-  "/:workspaceId/projects/:projectId",
-  requireAuth,
-  requireWorkspaceRole(
-    "owner",
-    "editor",
-    "viewer"
-  ),
-  async (req, res) => {
-    try {
-      const {
-        workspaceId,
-        projectId,
-      } = req.params;
-
-      const result = await pool.query(
-        `
-          SELECT
-            id,
-            workspace_id,
-            title,
-            schema_version,
-            document,
-            revision,
-            created_at,
-            updated_at
-          FROM projects
-          WHERE
-            id = $1
-            AND workspace_id = $2
-          LIMIT 1
-        `,
-        [
-          projectId,
-          workspaceId,
-        ]
-      );
-
-      const project = result.rows[0];
-
-      if (!project) {
-        return res.status(404).json({
-          ok: false,
-          error: "Проект не найден.",
-        });
-      }
-
-      return res.json({
-        ok: true,
-
-        project: {
-          id: project.id,
-          workspaceId:
-            project.workspace_id,
-          title: project.title,
-          schemaVersion:
-            project.schema_version,
-          document:
-            project.document,
-          revision:
-            project.revision,
-          createdAt:
-            project.created_at,
-          updatedAt:
-            project.updated_at,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "Get project error:",
-        error
-      );
-
-      return res.status(500).json({
-        ok: false,
-        error:
-          "Не удалось получить проект.",
-      });
-    }
+  if (!document || typeof document !== "object" || Array.isArray(document)) {
+    throw badRequest("Некорректные данные проекта.");
   }
-);
 
+  return document;
+}
 
-/* =========================================================
-   Создать проект
-========================================================= */
+function normalizeProjectId(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return "project_" + crypto.randomUUID();
+  }
 
-router.post(
-  "/:workspaceId/projects",
-  requireAuth,
-  requireWorkspaceRole(
-    "owner",
-    "editor"
-  ),
-  async (req, res) => {
-    try {
-      const { workspaceId } =
-        req.params;
+  const id = value.trim();
+  if (id.length > 200) throw badRequest("ID проекта слишком длинный.");
+  return id;
+}
 
-      let {
+function sendRouteError(res, error, fallbackMessage) {
+  if (Number.isInteger(error?.statusCode)) {
+    return res.status(error.statusCode).json({
+      ok: false,
+      error: error.message,
+    });
+  }
+
+  console.error(fallbackMessage, error);
+  return res.status(500).json({
+    ok: false,
+    error: fallbackMessage,
+  });
+}
+
+router.get("/", async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
         id,
         title,
-        schemaVersion,
-        document,
-      } = req.body;
+        schema_version,
+        revision,
+        created_at,
+        updated_at
+      FROM single_user_projects
+      ORDER BY updated_at DESC
+    `);
 
-      title =
-        typeof title === "string"
-          ? title.trim()
-          : "";
+    return res.json({
+      ok: true,
+      projects: result.rows.map((row) => mapProject(row, false)),
+    });
+  } catch (error) {
+    return sendRouteError(res, error, "Не удалось получить проекты.");
+  }
+});
 
-      if (!title) {
-        title = "Проект";
-      }
+router.get("/:projectId", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+        SELECT
+          id,
+          title,
+          schema_version,
+          document,
+          revision,
+          created_at,
+          updated_at
+        FROM single_user_projects
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [req.params.projectId]
+    );
 
-      if (title.length > 250) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            "Название проекта слишком длинное.",
-        });
-      }
+    const row = result.rows[0];
 
-      if (
-        !document ||
-        typeof document !== "object" ||
-        Array.isArray(document)
-      ) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            "Некорректные данные проекта.",
-        });
-      }
-
-      schemaVersion =
-        Number(schemaVersion) || 2;
-
-      if (
-        !Number.isInteger(
-          schemaVersion
-        ) ||
-        schemaVersion < 1
-      ) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            "Некорректная версия проекта.",
-        });
-      }
-
-      if (
-        typeof id !== "string" ||
-        !id.trim()
-      ) {
-        id =
-          "project_" +
-          crypto.randomUUID();
-      }
-
-      id = id.trim();
-
-      const result =
-        await pool.query(
-          `
-            INSERT INTO projects (
-              id,
-              workspace_id,
-              title,
-              schema_version,
-              document
-            )
-            VALUES (
-              $1,
-              $2,
-              $3,
-              $4,
-              $5
-            )
-            RETURNING
-              id,
-              workspace_id,
-              title,
-              schema_version,
-              document,
-              revision,
-              created_at,
-              updated_at
-          `,
-          [
-            id,
-            workspaceId,
-            title,
-            schemaVersion,
-            document,
-          ]
-        );
-
-      const project =
-        result.rows[0];
-
-      return res
-        .status(201)
-        .json({
-          ok: true,
-
-          project: {
-            id: project.id,
-            workspaceId:
-              project.workspace_id,
-            title:
-              project.title,
-            schemaVersion:
-              project.schema_version,
-            document:
-              project.document,
-            revision:
-              project.revision,
-            createdAt:
-              project.created_at,
-            updatedAt:
-              project.updated_at,
-          },
-        });
-    } catch (error) {
-      if (error.code === "23505") {
-        return res
-          .status(409)
-          .json({
-            ok: false,
-            error:
-              "Проект с таким ID уже существует.",
-          });
-      }
-
-      console.error(
-        "Create project error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!row) {
+      return res.status(404).json({
         ok: false,
-        error:
-          "Не удалось создать проект.",
+        error: "Проект не найден.",
       });
     }
+
+    return res.json({
+      ok: true,
+      project: mapProject(row),
+    });
+  } catch (error) {
+    return sendRouteError(res, error, "Не удалось получить проект.");
   }
-);
+});
 
+router.post("/", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const id = normalizeProjectId(body.id);
+    const title = normalizeTitle(body.title);
+    const schemaVersion = normalizeSchemaVersion(body.schemaVersion);
+    const document = normalizeDocument(body.document);
 
-/* =========================================================
-   Сохранить изменения проекта
-========================================================= */
+    const result = await pool.query(
+      `
+        INSERT INTO single_user_projects (
+          id,
+          title,
+          schema_version,
+          document
+        )
+        VALUES ($1, $2, $3, $4::jsonb)
+        RETURNING
+          id,
+          title,
+          schema_version,
+          document,
+          revision,
+          created_at,
+          updated_at
+      `,
+      [id, title, schemaVersion, JSON.stringify(document)]
+    );
 
-router.put(
-  "/:workspaceId/projects/:projectId",
-  requireAuth,
-  requireWorkspaceRole(
-    "owner",
-    "editor"
-  ),
-  async (req, res) => {
-    try {
-      const {
-        workspaceId,
-        projectId,
-      } = req.params;
+    return res.status(201).json({
+      ok: true,
+      project: mapProject(result.rows[0]),
+    });
+  } catch (error) {
+    if (error?.code === "23505") {
+      return res.status(409).json({
+        ok: false,
+        error: "Проект с таким ID уже существует.",
+      });
+    }
 
-      let {
+    return sendRouteError(res, error, "Не удалось создать проект.");
+  }
+});
+
+router.put("/:projectId", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const revision = Number(body.revision);
+
+    if (!Number.isInteger(revision) || revision < 1) {
+      return res.status(400).json({
+        ok: false,
+        error: "Для сохранения требуется текущая revision.",
+      });
+    }
+
+    const document = normalizeDocument(body.document);
+    const title = normalizeTitle(body.title);
+    const schemaVersion = normalizeSchemaVersion(body.schemaVersion);
+
+    const result = await pool.query(
+      `
+        UPDATE single_user_projects
+        SET
+          title = $1,
+          schema_version = $2,
+          document = $3::jsonb,
+          revision = revision + 1,
+          updated_at = NOW()
+        WHERE
+          id = $4
+          AND revision = $5
+        RETURNING
+          id,
+          title,
+          schema_version,
+          document,
+          revision,
+          created_at,
+          updated_at
+      `,
+      [
         title,
         schemaVersion,
-        document,
+        JSON.stringify(document),
+        req.params.projectId,
         revision,
-      } = req.body;
+      ]
+    );
 
-      if (
-        !document ||
-        typeof document !== "object" ||
-        Array.isArray(document)
-      ) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            "Некорректные данные проекта.",
-        });
-      }
+    const row = result.rows[0];
 
-      revision = Number(revision);
-
-      if (
-        !Number.isInteger(revision) ||
-        revision < 1
-      ) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            "Для сохранения требуется текущая revision.",
-        });
-      }
-
-      title =
-        typeof title === "string"
-          ? title.trim()
-          : "Проект";
-
-      if (!title) {
-        title = "Проект";
-      }
-
-      schemaVersion =
-        Number(schemaVersion) || 2;
-
-      const result =
-        await pool.query(
-          `
-            UPDATE projects
-            SET
-              title = $1,
-              schema_version = $2,
-              document = $3,
-              revision = revision + 1,
-              updated_at = NOW()
-            WHERE
-              id = $4
-              AND workspace_id = $5
-              AND revision = $6
-            RETURNING
-              id,
-              workspace_id,
-              title,
-              schema_version,
-              document,
-              revision,
-              created_at,
-              updated_at
-          `,
-          [
-            title,
-            schemaVersion,
-            document,
-            projectId,
-            workspaceId,
-            revision,
-          ]
-        );
-
-      const project =
-        result.rows[0];
-
-      if (!project) {
-        const currentResult =
-          await pool.query(
-            `
-              SELECT revision
-              FROM projects
-              WHERE
-                id = $1
-                AND workspace_id = $2
-              LIMIT 1
-            `,
-            [
-              projectId,
-              workspaceId,
-            ]
-          );
-
-        const current =
-          currentResult.rows[0];
-
-        if (!current) {
-          return res
-            .status(404)
-            .json({
-              ok: false,
-              error:
-                "Проект не найден.",
-            });
-        }
-
-        return res
-          .status(409)
-          .json({
-            ok: false,
-            error:
-              "Проект уже был изменён. Необходимо загрузить свежую версию.",
-            currentRevision:
-              current.revision,
-          });
-      }
-
+    if (row) {
       return res.json({
         ok: true,
-
-        project: {
-          id: project.id,
-          workspaceId:
-            project.workspace_id,
-          title:
-            project.title,
-          schemaVersion:
-            project.schema_version,
-          document:
-            project.document,
-          revision:
-            project.revision,
-          createdAt:
-            project.created_at,
-          updatedAt:
-            project.updated_at,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "Update project error:",
-        error
-      );
-
-      return res.status(500).json({
-        ok: false,
-        error:
-          "Не удалось сохранить проект.",
+        project: mapProject(row),
       });
     }
-  }
-);
 
+    const current = await pool.query(
+      `
+        SELECT revision
+        FROM single_user_projects
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [req.params.projectId]
+    );
 
-/* =========================================================
-   Удалить проект
-========================================================= */
-
-router.delete(
-  "/:workspaceId/projects/:projectId",
-  requireAuth,
-  requireWorkspaceRole(
-    "owner",
-    "editor"
-  ),
-  async (req, res) => {
-    try {
-      const {
-        workspaceId,
-        projectId,
-      } = req.params;
-
-      const result =
-        await pool.query(
-          `
-            DELETE FROM projects
-            WHERE
-              id = $1
-              AND workspace_id = $2
-            RETURNING id
-          `,
-          [
-            projectId,
-            workspaceId,
-          ]
-        );
-
-      if (!result.rows[0]) {
-        return res
-          .status(404)
-          .json({
-            ok: false,
-            error:
-              "Проект не найден.",
-          });
-      }
-
-      return res.json({
-        ok: true,
-        deletedProjectId:
-          result.rows[0].id,
-      });
-    } catch (error) {
-      console.error(
-        "Delete project error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!current.rows[0]) {
+      return res.status(404).json({
         ok: false,
-        error:
-          "Не удалось удалить проект.",
+        error: "Проект не найден.",
       });
     }
-  }
-);
 
+    return res.status(409).json({
+      ok: false,
+      error: "Проект уже был изменён. Необходимо загрузить свежую версию.",
+      currentRevision: current.rows[0].revision,
+    });
+  } catch (error) {
+    return sendRouteError(res, error, "Не удалось сохранить проект.");
+  }
+});
+
+router.delete("/:projectId", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+        DELETE FROM single_user_projects
+        WHERE id = $1
+        RETURNING id
+      `,
+      [req.params.projectId]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).json({
+        ok: false,
+        error: "Проект не найден.",
+      });
+    }
+
+    return res.json({
+      ok: true,
+      deletedProjectId: result.rows[0].id,
+    });
+  } catch (error) {
+    return sendRouteError(res, error, "Не удалось удалить проект.");
+  }
+});
 
 module.exports = router;

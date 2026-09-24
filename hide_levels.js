@@ -542,9 +542,22 @@ alwaysVisible:
     );
   }
 
-  h.prepend(
-    bar
-  );
+  const controlsHost =
+  (
+    typeof VIEW !== "undefined" &&
+    typeof currentView !== "undefined" &&
+    currentView === VIEW.STRUCTURE_TABLE
+  )
+    ? (
+        h.querySelector(
+          ".structure-table-schema-pane"
+        ) || h
+      )
+    : h;
+
+controlsHost.prepend(
+  bar
+);
 }
   
     function patchRender() {
@@ -569,20 +582,6 @@ alwaysVisible:
       style.id = "hideLevelsStyles";
   
       style.textContent = `
-  #tree.level-hide-active {
-    padding-top: 32px;
-  }
-
-  #tree .level-hide-bar {
-    
-    position: absolute;
-    left: 0px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 20px;
-    z-index: 45;
-  }
 
   #tree .level-hide-btn {
     height: 14px;

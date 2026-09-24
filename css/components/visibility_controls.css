@@ -18,6 +18,8 @@
   --visibility-side-hide-left: -35px;
   --visibility-side-restore-left: -25px;
 
+
+
   /*
     Для «Структура + Таблица»:
 
@@ -27,6 +29,17 @@
   */
 
   --visibility-structure-table-offset: 60px;
+
+   /*
+    Единая вертикальная сетка
+    верхних кнопок уровней.
+
+    0px  — верхняя строка
+    15px — нижняя строка
+  */
+
+  --visibility-top-collapse-top: 10px;
+  --visibility-top-hide-top: -5px;
 }
 
 
@@ -427,23 +440,177 @@ body.view-structure-table
 
 
 /* =========================================================
-   Сетка верхних кнопок уровней
+   ЕДИНАЯ СЕТКА ВЕРХНИХ КНОПОК УРОВНЕЙ
+
+   Вертикальное положение верхних кнопок
+   определяется только здесь.
 ========================================================= */
+
+
+/* =========================================================
+   Общая геометрия
+========================================================= */
+
+#tree.level-hide-active {
+  padding-top: 32px;
+}
+
 
 #tree
 .level-collapse-bar,
 
 #tree
 .level-hide-bar {
+  position: absolute;
+
+  left: 0;
+
   display: flex !important;
 
   align-items: center;
 
   gap: 8px !important;
 
+  width: max-content;
+  height: 20px;
+
   box-sizing: border-box;
+
+  z-index: 45;
 }
 
+
+/* =========================================================
+   Обычная «Структура»
+========================================================= */
+
+
+/*
+  Верхняя строка:
+  свернуть / развернуть.
+*/
+
+body.view-schema:not(.view-structure-table):not(.view-table)
+#tree
+> .level-collapse-bar {
+  top:
+    var(
+      --visibility-top-collapse-top
+    );
+}
+
+
+/*
+  Нижняя строка:
+  скрыть / показать.
+*/
+
+body.view-schema:not(.view-structure-table):not(.view-table)
+#tree
+> .level-hide-bar {
+  top:
+    var(
+      --visibility-top-hide-top
+    );
+}
+
+
+/* =========================================================
+   «Структура + Таблица»
+========================================================= */
+
+body.view-structure-table
+#tree
+.structure-table-schema-pane
+> .level-collapse-bar {
+  top:
+    calc(
+      var(
+        --visibility-top-collapse-top
+      )
+      +
+      var(
+        --visibility-structure-table-top-shift
+      )
+    );
+
+  pointer-events: auto;
+}
+
+
+body.view-structure-table
+#tree
+.structure-table-schema-pane
+> .level-hide-bar {
+  top:
+    calc(
+      var(
+        --visibility-top-hide-top
+      )
+      +
+      var(
+        --visibility-structure-table-top-shift
+      )
+    );
+
+  pointer-events: auto;
+}
+
+
+/* =========================================================
+   «Структура + Таблица»
+   + верхние заголовки уровней
+========================================================= */
+
+body.view-structure-table
+#tree
+.structure-table-has-top-level-headers
+> .structure-table-schema-pane
+> .level-collapse-bar {
+  top:
+    calc(
+      var(
+        --visibility-top-collapse-top
+      )
+      +
+      var(
+        --visibility-structure-table-top-shift
+      )
+      -
+      var(
+        --structure-table-top-headers-height,
+        0px
+      )
+    );
+}
+
+
+body.view-structure-table
+#tree
+.structure-table-has-top-level-headers
+> .structure-table-schema-pane
+> .level-hide-bar {
+  top:
+    calc(
+      var(
+        --visibility-top-hide-top
+      )
+      +
+      var(
+        --visibility-structure-table-top-shift
+      )
+      -
+      var(
+        --structure-table-top-headers-height,
+        0px
+      )
+    );
+}
+
+
+/* =========================================================
+   Размер верхних кнопок
+========================================================= */
 
 #tree
 .level-collapse-btn.visibility-control,
