@@ -42,6 +42,16 @@
   --visibility-top-hide-top: -5px;
 }
 
+body.view-table:not(.view-structure-table)
+#tree
+.table-collapse-col,
+
+body.view-table:not(.view-structure-table)
+#tree
+.object-hide-col {
+  transform: translateX(-6px);
+}
+
 
 /* =========================================================
    Базовая кнопка
